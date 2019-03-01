@@ -89,7 +89,7 @@ if __name__ == "__main__":
     transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]) #torchvision.transforms.Normalize(mean for the color channels, standard deviation for the color channels)
 
     #Note that by default CIFAR10 is a colored image dataset
-    trainset = torchvision.datasets.CIFAR10(root='../../data', train=True,
+    trainset = torchvision.datasets.CIFAR10(root='../../../data', train=True,
                                             download=True, transform=transform)
 
     # print("trainset ",trainset) #returns information about the dataset that you put into the variable called "trainset", even displays the information about what you did on this data
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE,
                                               shuffle=True, num_workers=2) #shuffle = True shuffles data at every new epoch
 
-    testset = torchvision.datasets.CIFAR10(root='../../data', train=False,
+    testset = torchvision.datasets.CIFAR10(root='../../../data', train=False,
                                            download=True, transform=transform)
     testloader = torch.utils.data.DataLoader(testset, batch_size=BATCH_SIZE,
                                              shuffle=False, num_workers=2)
@@ -187,4 +187,4 @@ if __name__ == "__main__":
 
 
 
-    torch.save(net.state_dict(), 'mytraining.pth')
+    torch.save(net.state_dict(), 'mytraining1b.pth')
