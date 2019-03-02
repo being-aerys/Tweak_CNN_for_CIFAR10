@@ -162,12 +162,12 @@ if __name__ == "__main__":
     # #This    has  an    effect    only    on    certain    modules.See   documentations   of   particular  modules    for details of their behaviors in training / evaluation mode, if they are affected, e.g.Dropout, BatchNorm, etc.
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.RMSprop(
+    optimizer = optim.Adam(
                             [
                                     {"params" : net.fc_new.parameters()},
                                     {"params":net.fc2.parameters()}
 
-                            ],lr=0.1,momentum=0.9
+                            ],lr=0.1#,momentum=0.9
                             )
 
 
