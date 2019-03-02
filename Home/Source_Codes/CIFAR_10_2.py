@@ -29,30 +29,6 @@ class Net(nn.Module):
 
         self.fc2 = nn.Linear(512, 10)
 
-        #---------Lets initialize the weights nefore the added FC layer to the pretrained weights
-        model_statistics_dictionary = self.state_dict()#get the model's statistics first
-        del copy_of_saved_state_statistics_of_the_model["fc2.weight"]#---------------delete the weights/ biases/ statistics that you don't want to use to update your model with
-        del copy_of_saved_state_statistics_of_the_model["fc2.bias"]
-        del copy_of_saved_state_statistics_of_the_model["batchnorm_1.running_mean"]
-        del copy_of_saved_state_statistics_of_the_model["batchnorm_1.running_var"]
-        del copy_of_saved_state_statistics_of_the_model["batchnorm_1.num_batches_tracked"]
-
-        # #-------check to see if the deletion was successful or not
-        # for key in copy_of_saved_state_statistics_of_the_model:
-        #     print(key)
-
-
-        #-----------------Now update the model's weights for those keys that exit in this edited dictionary of weights and biases
-
-
-
-
-        #------------------work on this ________________________________________*******###########***********###
-
-
-        for key, value in copy_of_saved_state_statistics_of_the_model.item():
-            if key in model_statistics_dictionary:
-                model_statistics_dictionary.update({key:value})
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
@@ -107,7 +83,7 @@ def eval_net(dataloader):
 
 if __name__ == "__main__":
     BATCH_SIZE = 32 #mini_batch size
-    MAX_EPOCH = 20 #maximum epoch to train
+    MAX_EPOCH = 10 #maximum epoch to train
 
     #--------------Load the saved weights on a dictionary
     saved_state_statistics_of_the_model = torch.load("mytraining1b.pth")
@@ -145,7 +121,7 @@ if __name__ == "__main__":
     # print("trainset [0] [0] ",trainset[0][0].shape) #[3, 32, 32], each image has 3 channels
     # print("trainset [0] [1] ",trainset[0][1])#prints the label for this image
 
-    #time.sleep(222)
+
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE,
                                               shuffle=True, num_workers=2) #shuffle = True shuffles data at every new epoch
 
@@ -160,14 +136,39 @@ if __name__ == "__main__":
     print('Building model...')
     net = Net().cuda() #VVI: Always move the model to GPU before constructing an optimizer, it doesnt matter if you are using SGD as an optimizer but you will not get the efficiency you wsant if you dont
     #do this for other optimizers
+
+    # ---------Lets initialize the weights partially before the training
+    model_statistics_dictionary = net.state_dict()  # get the model's statistics first
+    del copy_of_saved_state_statistics_of_the_model["fc2.weight"]  # ---------------delete the weights/ biases/ statistics that you don't want to use to update your model with
+    del copy_of_saved_state_statistics_of_the_model["fc2.bias"]
+    del copy_of_saved_state_statistics_of_the_model["batchnorm_1.running_mean"]
+    del copy_of_saved_state_statistics_of_the_model["batchnorm_1.running_var"]
+    del copy_of_saved_state_statistics_of_the_model["batchnorm_1.num_batches_tracked"]
+
+
+    # -----------------Now update the model's weights/ biases for those keys that exit in this edited dictionary of weights and biases
+
+
+    for key, value in copy_of_saved_state_statistics_of_the_model.items():
+        if key in model_statistics_dictionary:
+            model_statistics_dictionary.update({key: value})  # -------------------------------------
+
+
+    # -------------------------------->Now load these parameters to the model from the variable
+    net.load_state_dict(model_statistics_dictionary)
+
     net.train() # Why would I do this? -------> sets the module in training mode
     #train() is a function defined for nn.Module() class. It sets the module in training mode.
     # #This    has  an    effect    only    on    certain    modules.See   documentations   of   particular  modules    for details of their behaviors in training / evaluation mode, if they are affected, e.g.Dropout, BatchNorm, etc.
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
+    optimizer = optim.SGD(
+                            [
+                                    {"params" : net.fc_new.parameters()},
+                                    {"params":net.fc2.parameters()}
 
-
+                            ],lr=0.01,momentum=0.9
+                            )
 
     #---------------keep track of some variables after each epoch, plot after each epoch, and show after all the epochs are over
     epoch_list_for_the_plot = []
