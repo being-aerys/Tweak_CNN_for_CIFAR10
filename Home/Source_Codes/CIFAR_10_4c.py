@@ -14,40 +14,70 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(3, 32, 3, padding=1)
-        self.conv2 = nn.Conv2d(32, 32, 3, padding=1)
-        self.conv3 = nn.Conv2d(32, 64, 3, padding=1)
-        self.conv4 = nn.Conv2d(64, 64, 3, padding=1)
+        self.batchnorm_1 = nn.BatchNorm2d(32, 1e-12, affine=True, track_running_stats=True)
+        self.conv2 = nn.Conv2d(32, 64, 3, padding=1)
+        self.batchnorm_2 = nn.BatchNorm2d(64, 1e-12, affine=True, track_running_stats=True)
+
+        self.dropout_1 = nn.Dropout(p = 0.2)
+
+
+        self.conv3 = nn.Conv2d(64, 128, 3, padding=1)
+        self.batchnorm_3 = nn.BatchNorm2d(128, 1e-12, affine=True, track_running_stats=True)
+        self.conv4 = nn.Conv2d(128, 256, 3, padding=1)
+
+        self.batchnorm_4 = nn.BatchNorm2d(256, 1e-12, affine=True, track_running_stats=True)
+
+        self.dropout_2 = nn.Dropout(p = 0.2)
+
+        self.conv5 = nn.Conv2d(256, 512, 3, padding=1)
         self.pool = nn.MaxPool2d(2, 2)
-        self.fc1 = nn.Linear(64 * 8 * 8, 512)
+
+        #self.dropout_1 = nn.Dropout(p = 0.5 )
+        self.fc1 = nn.Linear(256 * 8 * 8, 512)
+
+        self.dropout_3 = nn.Dropout(p = 0.2)
 
         #add a batchnorm layer
-        self.batchnorm_1 = nn.BatchNorm1d(512, 1e-12, affine=True, track_running_stats=True)
-
-        #add a fully-connected layer before the FC2 layer
-
-        self.fc_new = nn.Linear(512,512)
+        self.batchnorm_5 = nn.BatchNorm1d(512, 1e-12, affine=True, track_running_stats=True)
 
         self.fc2 = nn.Linear(512, 10)
 
-
     def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
+        x = F.leaky_relu(self.conv1(x))
+        x = self.batchnorm_1(x)
+
+        x = F.leaky_relu(self.conv2(x))
+        x = self.batchnorm_2(x)
+
+        x = self.dropout_1(x)
+
+
+
         x = self.pool(x)
-        x = F.relu(self.conv3(x))
-        x = F.relu(self.conv4(x))
+        x = F.leaky_relu(self.conv3(x))
+        x = self.batchnorm_3(x)
+
+
+        x = F.leaky_relu(self.conv4(x))
+        x = self.batchnorm_4(x)
+        x = self.dropout_2(x)
         x = self.pool(x)
+
+        #print(x.shape)
         x = x.view(-1, self.num_flat_features(x))
+
+
+
 
         x = self.fc1(x)
 
+        x = self.dropout_3(x)
+
         # print("x ",x.shape)
 
-        x = self.batchnorm_1(x)#--------------added
+        x = self.batchnorm_5(x)
 
-        x = F.relu(x)
-
-        x = self.fc_new(x)#-------------------added
+        x = F.leaky_relu(x)
 
 
         x = self.fc2(x)
@@ -85,23 +115,6 @@ if __name__ == "__main__":
     BATCH_SIZE = 32 #mini_batch size
     MAX_EPOCH = 100 #maximum epoch to train
 
-    #--------------Load the saved weights on a dictionary
-    saved_state_statistics_of_the_model = torch.load("mytraining2.pth")
-    for keyname_of_the_state_statistic in saved_state_statistics_of_the_model:
-
-        print(keyname_of_the_state_statistic )
-
-
-    #-------Since you do not want to use all of the weights but only those weights before the FC2 layer,
-    # copy the dictionary into some other variable,
-    # then remove unnecessary weights
-    #from this new dictionary and then use the remaining wights to apply to the model
-
-    copy_of_saved_state_statistics_of_the_model = saved_state_statistics_of_the_model.copy()
-    #Now once we initialize the weights for all the layers, we use this new copy of the pretrained weights to overwrite those initializations as we require
-
-
-
 
     print("Current cuda device is ", torch.cuda.current_device())
     print("Total cuda-supporting devices count is ",torch.cuda.device_count())
@@ -110,7 +123,8 @@ if __name__ == "__main__":
 
 
 
-    transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]) #torchvision.transforms.Normalize(mean for the color channels, standard deviation for the color channels)
+    transform = transforms.Compose([transforms.RandomCrop(32, padding=4),transforms.RandomHorizontalFlip(),#transforms.RandomVerticalFlip(), do not do vertical flip, ulto banauxa image not what we want
+                                    transforms.ToTensor(),transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]) #torchvision.transforms.Normalize(mean for the color channels, standard deviation for the color channels)
 
     #Note that by default CIFAR10 is a colored image dataset
     trainset = torchvision.datasets.CIFAR10(root='../../../data', train=True,
@@ -121,7 +135,7 @@ if __name__ == "__main__":
     # print("trainset [0] [0] ",trainset[0][0].shape) #[3, 32, 32], each image has 3 channels
     # print("trainset [0] [1] ",trainset[0][1])#prints the label for this image
 
-
+    #time.sleep(222)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE,
                                               shuffle=True, num_workers=2) #shuffle = True shuffles data at every new epoch
 
@@ -137,38 +151,22 @@ if __name__ == "__main__":
     net = Net().cuda() #VVI: Always move the model to GPU before constructing an optimizer, it doesnt matter if you are using SGD as an optimizer but you will not get the efficiency you wsant if you dont
     #do this for other optimizers
 
-    # ---------Lets initialize the weights partially before the training
-    model_statistics_dictionary = net.state_dict()  # get the model's statistics first
-    del copy_of_saved_state_statistics_of_the_model["fc2.weight"]  # ---------------delete the weights/ biases/ statistics that you don't want to use to update your model with
-    del copy_of_saved_state_statistics_of_the_model["fc2.bias"]
-    del copy_of_saved_state_statistics_of_the_model["batchnorm_1.running_mean"]
-    del copy_of_saved_state_statistics_of_the_model["batchnorm_1.running_var"]
-    del copy_of_saved_state_statistics_of_the_model["batchnorm_1.num_batches_tracked"]
+    # saved_state_statistics_of_the_model_upto_50_epochs = torch.load("mytraining4ab.pth")
+    # model_statistics_dictionary = net.state_dict()
+    # for key, value in saved_state_statistics_of_the_model_upto_50_epochs.items():
+    #     if key in model_statistics_dictionary:
+    #         model_statistics_dictionary.update({key: value})  # -------------------------------------
+    # net.load_state_dict(model_statistics_dictionary)
 
 
-    # -----------------Now update the model's weights/ biases for those keys that exit in this edited dictionary of weights and biases
 
-
-    for key, value in copy_of_saved_state_statistics_of_the_model.items():
-        if key in model_statistics_dictionary:
-            model_statistics_dictionary.update({key: value})  # -------------------------------------
-
-
-    # -------------------------------->Now load these parameters to the model from the variable
-    net.load_state_dict(model_statistics_dictionary)
 
     net.train() # Why would I do this? -------> sets the module in training mode
     #train() is a function defined for nn.Module() class. It sets the module in training mode.
     # #This    has  an    effect    only    on    certain    modules.See   documentations   of   particular  modules    for details of their behaviors in training / evaluation mode, if they are affected, e.g.Dropout, BatchNorm, etc.
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(
-                            [
-                                    {"params" : net.fc_new.parameters()},
-                                    {"params":net.fc2.parameters()}
-
-                            ],lr=0.1#,momentum=0.9
-                            )
+    optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9,weight_decay=1e-05)
 
 
 
@@ -179,10 +177,6 @@ if __name__ == "__main__":
 
     print('Start training...')
     for epoch in range(MAX_EPOCH):  # loop over the data set multiple times
-
-        # --------------------Adaptive learning rate scheduler for each epoch
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.1, step_size=1, last_epoch=-1)
-        scheduler.step()
 
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
@@ -199,19 +193,7 @@ if __name__ == "__main__":
             outputs = net(inputs)
             loss = criterion(outputs, labels)
             loss.backward()
-
-
-
-            #----------------------------------------------along with optimizer.step(), we now do scheduler.step(), optimizer.step() already handled by scheduler as we pass optimizer as an arg itself
-            #SINC WE ARE DOING MINI BATCH OPTIMIZATION SO optimizer.step() is within this loop away from the scheduler.step(), else they wouldve been called together, once for every epoch
-
-
-
             optimizer.step()
-            #
-            #
-
-
             # print statistics
             #print("loss.data ",loss.data)
 
@@ -236,11 +218,12 @@ if __name__ == "__main__":
         epoch_list_for_the_plot.append(epoch)
 
         #----------------------------Plot the results for each epoch
-        plt.plot(epoch_list_for_the_plot, training_accuracy_list, 'g', label="Training Accuracies for the Epochs")  # pass array or list
-        plt.plot(epoch_list_for_the_plot, testing_accuracy_list, 'r', label="Testing Accuracies for the Epochs")
+        plt.plot(epoch_list_for_the_plot, training_accuracy_list, 'g')  # pass array or list
+        plt.plot(epoch_list_for_the_plot, testing_accuracy_list, 'r')
         plt.xlabel("Number of Epochs")
         plt.ylabel("Accuracies")
-        plt.title("Number of Epochs VS Accuracies")
+        plt.gca().legend(('Training accuracy', 'Testing accuracy'))
+        plt.title("Number of Epochs VS Accuracies Q4a")
 
 
 
@@ -254,4 +237,4 @@ if __name__ == "__main__":
 
 
 
-    torch.save(net.state_dict(), 'mytraining3.pth')
+    torch.save(net.state_dict(), 'mytraining4c.pth')

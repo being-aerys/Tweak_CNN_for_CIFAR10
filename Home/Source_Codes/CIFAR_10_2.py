@@ -83,7 +83,7 @@ def eval_net(dataloader):
 
 if __name__ == "__main__":
     BATCH_SIZE = 32 #mini_batch size
-    MAX_EPOCH = 10 #maximum epoch to train
+    MAX_EPOCH = 20 #maximum epoch to train
 
     #--------------Load the saved weights on a dictionary
     saved_state_statistics_of_the_model = torch.load("mytraining1b.pth")
@@ -218,11 +218,12 @@ if __name__ == "__main__":
         epoch_list_for_the_plot.append(epoch)
 
         #----------------------------Plot the results for each epoch
-        plt.plot(epoch_list_for_the_plot, training_accuracy_list, 'g', label="Training Accuracies for the Epochs")  # pass array or list
-        plt.plot(epoch_list_for_the_plot, testing_accuracy_list, 'r', label="Testing Accuracies for the Epochs")
+        plt.plot(epoch_list_for_the_plot, training_accuracy_list, 'g')  # pass array or list
+        plt.plot(epoch_list_for_the_plot, testing_accuracy_list, 'r')
         plt.xlabel("Number of Epochs")
         plt.ylabel("Accuracies")
-        plt.title("Number of Epochs VS Accuracies")
+        plt.gca().legend(('Training accuracy', 'Testing accuracy'))
+        plt.title("Number of Epochs VS Accuracies Q2")
 
 
 

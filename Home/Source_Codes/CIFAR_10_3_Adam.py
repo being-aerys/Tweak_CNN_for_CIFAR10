@@ -23,7 +23,12 @@ class Net(nn.Module):
         #add a batchnorm layer
         self.batchnorm_1 = nn.BatchNorm1d(512, 1e-12, affine=True, track_running_stats=True)
 
+        #add a fully-connected layer before the FC2 layer
+
+        self.fc_new = nn.Linear(512,512)
+
         self.fc2 = nn.Linear(512, 10)
+
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
@@ -38,9 +43,11 @@ class Net(nn.Module):
 
         # print("x ",x.shape)
 
-        x = self.batchnorm_1(x)
+        x = self.batchnorm_1(x)#--------------added
 
         x = F.relu(x)
+
+        x = self.fc_new(x)#-------------------added
 
 
         x = self.fc2(x)
@@ -77,6 +84,25 @@ def eval_net(dataloader):
 if __name__ == "__main__":
     BATCH_SIZE = 32 #mini_batch size
     MAX_EPOCH = 20 #maximum epoch to train
+    lr = 0.1
+    print(" The learning rate is  ", lr)
+
+    #--------------Load the saved weights on a dictionary
+    saved_state_statistics_of_the_model = torch.load("mytraining2.pth")
+    for keyname_of_the_state_statistic in saved_state_statistics_of_the_model:
+
+        print(keyname_of_the_state_statistic )
+
+
+    #-------Since you do not want to use all of the weights but only those weights before the FC2 layer,
+    # copy the dictionary into some other variable,
+    # then remove unnecessary weights
+    #from this new dictionary and then use the remaining wights to apply to the model
+
+    copy_of_saved_state_statistics_of_the_model = saved_state_statistics_of_the_model.copy()
+    #Now once we initialize the weights for all the layers, we use this new copy of the pretrained weights to overwrite those initializations as we require
+
+
 
 
     print("Current cuda device is ", torch.cuda.current_device())
@@ -97,7 +123,7 @@ if __name__ == "__main__":
     # print("trainset [0] [0] ",trainset[0][0].shape) #[3, 32, 32], each image has 3 channels
     # print("trainset [0] [1] ",trainset[0][1])#prints the label for this image
 
-    #time.sleep(222)
+
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE,
                                               shuffle=True, num_workers=2) #shuffle = True shuffles data at every new epoch
 
@@ -112,13 +138,39 @@ if __name__ == "__main__":
     print('Building model...')
     net = Net().cuda() #VVI: Always move the model to GPU before constructing an optimizer, it doesnt matter if you are using SGD as an optimizer but you will not get the efficiency you wsant if you dont
     #do this for other optimizers
+
+    # ---------Lets initialize the weights partially before the training
+    model_statistics_dictionary = net.state_dict()  # get the model's statistics first
+    del copy_of_saved_state_statistics_of_the_model["fc2.weight"]  # ---------------delete the weights/ biases/ statistics that you don't want to use to update your model with
+    del copy_of_saved_state_statistics_of_the_model["fc2.bias"]
+    del copy_of_saved_state_statistics_of_the_model["batchnorm_1.running_mean"]
+    del copy_of_saved_state_statistics_of_the_model["batchnorm_1.running_var"]
+    del copy_of_saved_state_statistics_of_the_model["batchnorm_1.num_batches_tracked"]
+
+
+    # -----------------Now update the model's weights/ biases for those keys that exit in this edited dictionary of weights and biases
+
+
+    for key, value in copy_of_saved_state_statistics_of_the_model.items():
+        if key in model_statistics_dictionary:
+            model_statistics_dictionary.update({key: value})  # -------------------------------------
+
+
+    # -------------------------------->Now load these parameters to the model from the variable
+    net.load_state_dict(model_statistics_dictionary)
+
     net.train() # Why would I do this? -------> sets the module in training mode
     #train() is a function defined for nn.Module() class. It sets the module in training mode.
     # #This    has  an    effect    only    on    certain    modules.See   documentations   of   particular  modules    for details of their behaviors in training / evaluation mode, if they are affected, e.g.Dropout, BatchNorm, etc.
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
+    optimizer = optim.Adam(
+                            [
+                                    {"params" : net.fc_new.parameters()},
+                                    {"params":net.fc2.parameters()}
 
+                            ],lr#,momentum=0.9
+                            )
 
 
     #---------------keep track of some variables after each epoch, plot after each epoch, and show after all the epochs are over
@@ -128,6 +180,7 @@ if __name__ == "__main__":
 
     print('Start training...')
     for epoch in range(MAX_EPOCH):  # loop over the data set multiple times
+
 
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
@@ -144,7 +197,19 @@ if __name__ == "__main__":
             outputs = net(inputs)
             loss = criterion(outputs, labels)
             loss.backward()
+
+
+
+            #----------------------------------------------along with optimizer.step(), we now do scheduler.step(), optimizer.step() already handled by scheduler as we pass optimizer as an arg itself
+            #SINC WE ARE DOING MINI BATCH OPTIMIZATION SO optimizer.step() is within this loop away from the scheduler.step(), else they wouldve been called together, once for every epoch
+
+
+
             optimizer.step()
+            #
+            #
+
+
             # print statistics
             #print("loss.data ",loss.data)
 
@@ -156,6 +221,11 @@ if __name__ == "__main__":
                 print('    Step: %5d avg_batch_loss: %.5f' %
                       (i + 1, running_loss / 500))
                 running_loss = 0.0
+
+                # --------------------Adaptive learning rate scheduler for each epoch
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.1, step_size=1, last_epoch=-1)
+        scheduler.step()
+
         print('    Finish training this EPOCH, start evaluating...')
         train_loss, train_acc = eval_net(trainloader)
         test_loss, test_acc = eval_net(testloader)
@@ -174,7 +244,7 @@ if __name__ == "__main__":
         plt.xlabel("Number of Epochs")
         plt.ylabel("Accuracies")
         plt.gca().legend(('Training accuracy', 'Testing accuracy'))
-        plt.title("Number of Epochs VS Accuracies Q1b")
+        plt.title("Number of Epochs VS Accuracies Q3 Adam")
 
 
 
@@ -188,4 +258,4 @@ if __name__ == "__main__":
 
 
 
-    torch.save(net.state_dict(), 'mytraining1b.pth')
+    torch.save(net.state_dict(), 'mytraining3_Adam.pth')

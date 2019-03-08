@@ -14,11 +14,13 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(3, 32, 3, padding=1)
-        self.conv2 = nn.Conv2d(32, 32, 3, padding=1)
-        self.conv3 = nn.Conv2d(32, 64, 3, padding=1)
-        self.conv4 = nn.Conv2d(64, 64, 3, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, 3, padding=1)
+        self.conv3 = nn.Conv2d(64, 128, 3, padding=1)
+        self.conv4 = nn.Conv2d(128, 256, 3, padding=1)
         self.pool = nn.MaxPool2d(2, 2)
-        self.fc1 = nn.Linear(64 * 8 * 8, 512)
+
+        #self.dropout_1 = nn.Dropout(p = 0.5 )
+        self.fc1 = nn.Linear(256 * 8 * 8, 512)
 
         #add a batchnorm layer
         self.batchnorm_1 = nn.BatchNorm1d(512, 1e-12, affine=True, track_running_stats=True)
@@ -26,11 +28,11 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(512, 10)
 
     def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
+        x = F.leaky_relu(self.conv1(x))
+        x = F.leaky_relu(self.conv2(x))
         x = self.pool(x)
-        x = F.relu(self.conv3(x))
-        x = F.relu(self.conv4(x))
+        x = F.leaky_relu(self.conv3(x))
+        x = F.leaky_relu(self.conv4(x))
         x = self.pool(x)
         x = x.view(-1, self.num_flat_features(x))
 
@@ -40,7 +42,7 @@ class Net(nn.Module):
 
         x = self.batchnorm_1(x)
 
-        x = F.relu(x)
+        x = F.leaky_relu(x)
 
 
         x = self.fc2(x)
@@ -76,7 +78,7 @@ def eval_net(dataloader):
 
 if __name__ == "__main__":
     BATCH_SIZE = 32 #mini_batch size
-    MAX_EPOCH = 20 #maximum epoch to train
+    MAX_EPOCH = 100 #maximum epoch to train
 
 
     print("Current cuda device is ", torch.cuda.current_device())
@@ -86,7 +88,8 @@ if __name__ == "__main__":
 
 
 
-    transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]) #torchvision.transforms.Normalize(mean for the color channels, standard deviation for the color channels)
+    transform = transforms.Compose([transforms.RandomCrop(32, padding=4),transforms.RandomHorizontalFlip(),#transforms.RandomVerticalFlip(), do not do vertical flip, ulto banauxa image not what we want
+                                    transforms.ToTensor(),transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]) #torchvision.transforms.Normalize(mean for the color channels, standard deviation for the color channels)
 
     #Note that by default CIFAR10 is a colored image dataset
     trainset = torchvision.datasets.CIFAR10(root='../../../data', train=True,
@@ -112,12 +115,23 @@ if __name__ == "__main__":
     print('Building model...')
     net = Net().cuda() #VVI: Always move the model to GPU before constructing an optimizer, it doesnt matter if you are using SGD as an optimizer but you will not get the efficiency you wsant if you dont
     #do this for other optimizers
+
+    # saved_state_statistics_of_the_model_upto_50_epochs = torch.load("mytraining4ab.pth")
+    # model_statistics_dictionary = net.state_dict()
+    # for key, value in saved_state_statistics_of_the_model_upto_50_epochs.items():
+    #     if key in model_statistics_dictionary:
+    #         model_statistics_dictionary.update({key: value})  # -------------------------------------
+    # net.load_state_dict(model_statistics_dictionary)
+
+
+
+
     net.train() # Why would I do this? -------> sets the module in training mode
     #train() is a function defined for nn.Module() class. It sets the module in training mode.
     # #This    has  an    effect    only    on    certain    modules.See   documentations   of   particular  modules    for details of their behaviors in training / evaluation mode, if they are affected, e.g.Dropout, BatchNorm, etc.
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
+    optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9,weight_decay=1e-05)
 
 
 
@@ -174,7 +188,7 @@ if __name__ == "__main__":
         plt.xlabel("Number of Epochs")
         plt.ylabel("Accuracies")
         plt.gca().legend(('Training accuracy', 'Testing accuracy'))
-        plt.title("Number of Epochs VS Accuracies Q1b")
+        plt.title("Number of Epochs VS Accuracies Q4a")
 
 
 
@@ -188,4 +202,4 @@ if __name__ == "__main__":
 
 
 
-    torch.save(net.state_dict(), 'mytraining1b.pth')
+    torch.save(net.state_dict(), 'mytraining4b_final.pth')
