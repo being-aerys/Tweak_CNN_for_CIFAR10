@@ -9,7 +9,7 @@ import torchvision.transforms as transforms
 import torch.optim as optim
 import time
 import matplotlib.pyplot as plt
-
+#-----------------------------------------------------------------------------------Use the code for Adam, this might contain some minor error
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()

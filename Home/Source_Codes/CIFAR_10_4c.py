@@ -9,6 +9,7 @@ import torchvision.transforms as transforms
 import torch.optim as optim
 import time
 import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt_2
 
 class Net(nn.Module):
     def __init__(self):
@@ -114,6 +115,8 @@ def eval_net(dataloader):
 if __name__ == "__main__":
     BATCH_SIZE = 32 #mini_batch size
     MAX_EPOCH = 100 #maximum epoch to train
+    fig1 = plt.figure(1)
+    fig2 = plt.figure(2)
 
 
     print("Current cuda device is ", torch.cuda.current_device())
@@ -174,7 +177,8 @@ if __name__ == "__main__":
     epoch_list_for_the_plot = []
     training_accuracy_list = []
     testing_accuracy_list = []
-
+    training_loss_list = []
+    testing_loss_list = []
     print('Start training...')
     for epoch in range(MAX_EPOCH):  # loop over the data set multiple times
 
@@ -215,15 +219,32 @@ if __name__ == "__main__":
         #----------------------------Append the values to the lists
         training_accuracy_list.append(train_acc)
         testing_accuracy_list.append(test_acc)
+        training_loss_list.append(train_loss)
+        testing_loss_list.append(test_loss)
         epoch_list_for_the_plot.append(epoch)
 
-        #----------------------------Plot the results for each epoch
+        # ----------------------------Plot the results for each epoch
+        plt.figure(1)#------------------------------------------------------------Mode = figure(1) for plt
+
         plt.plot(epoch_list_for_the_plot, training_accuracy_list, 'g')  # pass array or list
         plt.plot(epoch_list_for_the_plot, testing_accuracy_list, 'r')
         plt.xlabel("Number of Epochs")
         plt.ylabel("Accuracies")
+        # plt.legend(loc='upper left')
         plt.gca().legend(('Training accuracy', 'Testing accuracy'))
-        plt.title("Number of Epochs VS Accuracies Q4a")
+        plt.grid()
+
+        plt.title("Number of Epochs VS Accuracies Q4(c)")
+        plt.figure(2)#-----------------------------------------------------------
+
+        plt.plot(epoch_list_for_the_plot, training_loss_list, "g")
+        plt.plot(epoch_list_for_the_plot, testing_loss_list, "r")
+        plt.xlabel("Number of Epochs")
+        plt.ylabel("Loss")
+        plt.gca().legend(("Training Loss", "Testing Loss"))
+        plt.grid()
+
+        plt.title("Number of Epochs vs Loss Q4(c)")
 
 
 
@@ -232,7 +253,6 @@ if __name__ == "__main__":
     print('Finished Training')
     print('Saving model...')
     plt.show()
-
 
 
 
